@@ -16,6 +16,14 @@ class CMakeExtension(Extension):
 
 
 class CMakeBuild(build_ext):
+    def safe_delete_dir(self, dir_to_delete):
+        if os.path.exists(dir_to_delete):
+            shutil.rmtree(dir_to_delete)
+
+    def safe_delete_file(self, file_to_delete):
+        if os.path.exists(file_to_delete):
+            os.remove(file_to_delete)
+
     def run(self):
         try:
             out = subprocess.check_output(['cmake', '--version'])
@@ -30,12 +38,23 @@ class CMakeBuild(build_ext):
 
         # make build directory
         build_dir = os.path.join(extdir, "egl_probe", "build")
-        if os.path.exists(build_dir):
-            shutil.rmtree(build_dir)
+        self.safe_delete_dir(build_dir)
         os.mkdir(build_dir)
 
         # build using cmake
         subprocess.check_call("cmake ..; make -j", cwd=build_dir, shell=True)
+
+        # Cleanup build directory
+        self.safe_delete_dir(os.path.join(build_dir, "CMakeFiles"))
+        self.safe_delete_file(os.path.join(build_dir, "CMakeCache.txt"))
+        self.safe_delete_file(os.path.join(build_dir, "Makefile"))
+        self.safe_delete_file(os.path.join(build_dir, "cmake_install.cmake"))
+
+        # Cleanup sources not needed at runtime
+        self.safe_delete_dir(os.path.join(extdir, "egl_probe", "glad"))
+        self.safe_delete_file(os.path.join(extdir, "egl_probe", "CMakeLists.txt"))
+        self.safe_delete_file(os.path.join(extdir, "egl_probe", "query_devices.cpp"))
+        self.safe_delete_file(os.path.join(extdir, "egl_probe", "test_device.cpp"))
 
 
 if sys.version_info.major == 3:
